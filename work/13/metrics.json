@@ -5,16 +5,143 @@
     "push": 0
   },
   "blocking_red_at_delivery": 0,
-  "first_pass_verdict": "not reviewed",
+  "first_pass_verdict": "no-go",
   "mode": "delivered",
-  "outcome": "running",
-  "rounds": 0,
-  "sessions": [],
+  "outcome": "needs a human",
+  "rounds": 2,
+  "sessions": [
+    {
+      "cache_read_tokens": 228284,
+      "cache_write_tokens": 28687,
+      "cost_usd": 0.2366564,
+      "duration_s": 174.103,
+      "input_tokens": 20,
+      "model": "claude-sonnet-5-5",
+      "output_tokens": 9904,
+      "role": "implementer",
+      "round": 0,
+      "runtime": "claude-code",
+      "stop_reason": "finished"
+    },
+    {
+      "cache_read_tokens": 366464,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.11382424999999999,
+      "duration_s": 67.572,
+      "input_tokens": 29101,
+      "model": "openai/gpt-5",
+      "output_tokens": 2332,
+      "role": "reviewer",
+      "round": 0,
+      "runtime": "opencode",
+      "stop_reason": "finished"
+    },
+    {
+      "cache_read_tokens": 25703,
+      "cache_write_tokens": 4823,
+      "cost_usd": 0.0280843,
+      "duration_s": 130.977,
+      "input_tokens": 6,
+      "model": "claude-sonnet-5-5",
+      "output_tokens": 621,
+      "role": "implementer",
+      "round": 1,
+      "runtime": "claude-code",
+      "stop_reason": "finished"
+    },
+    {
+      "cache_read_tokens": 255360,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.1597925,
+      "duration_s": 107.712,
+      "input_tokens": 32706,
+      "model": "openai/gpt-5",
+      "output_tokens": 1723,
+      "role": "reviewer",
+      "round": 1,
+      "runtime": "opencode",
+      "stop_reason": "finished"
+    },
+    {
+      "cache_read_tokens": 26898,
+      "cache_write_tokens": 6439,
+      "cost_usd": 0.0327478,
+      "duration_s": 62.741,
+      "input_tokens": 6,
+      "model": "claude-sonnet-5-5",
+      "output_tokens": 429,
+      "role": "implementer",
+      "round": 2,
+      "runtime": "claude-code",
+      "stop_reason": "finished"
+    },
+    {
+      "cache_read_tokens": 236032,
+      "cache_write_tokens": 0,
+      "cost_usd": 0.13352775,
+      "duration_s": 110.677,
+      "input_tokens": 24379,
+      "model": "openai/gpt-5",
+      "output_tokens": 1979,
+      "role": "reviewer",
+      "round": 2,
+      "runtime": "opencode",
+      "stop_reason": "finished"
+    }
+  ],
   "started": "2026-10-16T23:02:07Z",
   "steps": [
     {
       "at": "2026-10-16T23:02:07Z",
       "name": "folder opened"
+    },
+    {
+      "at": "2026-10-16T23:05:01Z",
+      "name": "implementer session 1 stopped"
+    },
+    {
+      "at": "2026-10-16T23:06:04Z",
+      "name": "checks replayed"
+    },
+    {
+      "at": "2026-10-16T23:07:12Z",
+      "name": "reviewer session 2 stopped"
+    },
+    {
+      "at": "2026-10-16T23:07:13Z",
+      "name": "fix round 1 began"
+    },
+    {
+      "at": "2026-10-16T23:09:24Z",
+      "name": "implementer session 3 stopped"
+    },
+    {
+      "at": "2026-10-16T23:10:25Z",
+      "name": "checks replayed"
+    },
+    {
+      "at": "2026-10-16T23:12:13Z",
+      "name": "reviewer session 4 stopped"
+    },
+    {
+      "at": "2026-10-16T23:12:14Z",
+      "name": "fix round 2 began"
+    },
+    {
+      "at": "2026-10-16T23:13:17Z",
+      "name": "implementer session 5 stopped"
+    },
+    {
+      "at": "2026-10-16T23:14:22Z",
+      "name": "checks replayed"
+    },
+    {
+      "at": "2026-10-16T23:16:13Z",
+      "name": "reviewer session 6 stopped"
+    },
+    {
+      "at": "2026-10-16T23:16:14Z",
+      "name": "outcome: needs a human"
     }
   ],
   "ticket": 13
