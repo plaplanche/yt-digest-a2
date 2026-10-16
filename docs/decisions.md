@@ -13,3 +13,5 @@
 2026-10-16: `log.emit` accepts only the fields `request_id`, `video_id` and `attrs` besides `event` and `level` (`ts` and `service` are set by the logger); the TypeScript `log(event, fields, level)` follows the same rule, and keeps a runtime list of events checked at compile time against the generated union.
 2026-10-16: Contract tests run `--check` on a temporary copy of the schemas and generated files, reusing the installed `node_modules`, with a 60 s timeout since each run regenerates everything.
 2026-10-16: `@types/node` is a dev dependency of `worker/`, for the tests that run `scripts/contracts.sh`.
+2026-10-16: Segments are passed as a list of (start, end) tuples; a "kept cue" for the paragraph gap is a cue that still has at least one line after steps 3 and 4, and the gap is compared in whole milliseconds to avoid float error.
+2026-10-16: Cleaning step 3 removes tags, then decodes entities, then removes `[…]` per line; a line is a duplicate when equal to the last kept line, across cues.
