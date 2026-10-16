@@ -26,3 +26,6 @@
 2026-10-16: SponsorBlock is called only when a track was chosen; for the other statuses `fetch.transcript` has only `outcome`, `sponsor_ratio` (null) and `duration_ms`.
 2026-10-16: The command is the `yt-digest-node` console script (`yt_digest_node.cli:main`); the result is printed as one JSON line.
 2026-10-16: An empty language list (`--langs` or `TRANSCRIPT_LANGS` with no language once split on commas and trimmed) is rejected like a bad argument, with exit code 2.
+2026-10-16: Timestamps in the node protocol schemas are checked with the same pattern as the `ts` of the log schema (ISO 8601 UTC, milliseconds, `Z`), not with a `format`.
+2026-10-16: `scripts/contracts.sh` resolves a `$ref` to another `*.schema.json` by replacing it, before generation, with the generated type of that schema (`tsType` for json2ts, `customTypePath` for datamodel-codegen) and importing it, so the type is never duplicated.
+2026-10-16: The Worker gains `ajv` (JSON Schema 2020-12) as a dev dependency so its tests validate instances against the real schemas.

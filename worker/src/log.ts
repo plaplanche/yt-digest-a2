@@ -1,6 +1,29 @@
 import type { EventName, LogEvent } from "./contracts/log-event";
 
-const EVENTS = ["service.started", "fetch.transcript", "sponsorblock.call"] as const satisfies readonly EventName[];
+const EVENTS = [
+  "service.started",
+  "fetch.transcript",
+  "sponsorblock.call",
+  "node.enrolled",
+  "node.revoked",
+  "node.heartbeat",
+  "job.enqueued",
+  "job.claimed",
+  "job.completed",
+  "job.released",
+  "job.lease_expired",
+  "job.stale_result",
+  "job.validation_failed",
+  "auth.bearer.rejected",
+  "auth.client.registered",
+  "auth.oauth.completed",
+  "auth.oauth.denied",
+  "auth.token.issued",
+  "auth.refresh.reuse_detected",
+  "auth.origin.rejected",
+  "mcp.tool.call",
+  "worker.call",
+] as const satisfies readonly EventName[];
 // Fails to compile when the catalogue gains an event that EVENTS does not list.
 const _exhaustive: Exclude<EventName, (typeof EVENTS)[number]> extends never ? true : never = true;
 void _exhaustive;

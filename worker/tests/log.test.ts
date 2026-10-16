@@ -23,3 +23,9 @@ it("throws on an unknown field", () => {
   // @ts-expect-error the type system rejects it too
   expect(() => log("service.started", { bogus: 1 })).toThrow();
 });
+
+it("accepts an event of lot 2", () => {
+  const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  log("job.claimed", { video_id: "dQw4w9WgXcQ", attrs: { node_id: "n1", attempt: 1, lease_seconds: 600 } });
+  expect(JSON.parse(String(spy.mock.calls[0]?.[0]))).toMatchObject({ event: "job.claimed", video_id: "dQw4w9WgXcQ" });
+});
