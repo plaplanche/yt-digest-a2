@@ -15,3 +15,5 @@
 2026-10-16: `@types/node` is a dev dependency of `worker/`, for the tests that run `scripts/contracts.sh`.
 2026-10-16: Segments are passed as a list of (start, end) tuples; a "kept cue" for the paragraph gap is a cue that still has at least one line after steps 3 and 4, and the gap is compared in whole milliseconds to avoid float error.
 2026-10-16: Cleaning step 3 removes tags, then decodes entities, then removes `[…]` per line; a line is a duplicate when equal to the last kept line, across cues.
+2026-10-16: `fetch_segments(video_id, base_url, request_id)` takes the base URL as an argument (the command reads `SPONSORBLOCK_URL`); a 200 whose body is not the expected array counts as `error`, and `sponsorblock.call` is logged at `info` for `ok`/`none` and `warn` for `error`, with `video_id` and the optional `request_id`.
+2026-10-16: `sponsorblock.call` carries the attrs `status` (HTTP status, 0 when no response), `segments` (number of segments returned, 0 on `none`/`error`) and `duration_ms` (call time in whole milliseconds).
