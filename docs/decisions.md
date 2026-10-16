@@ -21,3 +21,7 @@
 2026-10-16: Track choice matches language codes exactly (`fr` does not match `fr-CA`), with the first track in file order for a given language and kind.
 2026-10-16: The yt-dlp extractor maps an exception by its message: "not a bot" to `blocked` (checked first), then "private video", "age", "removed", "unavailable", "terminated" or "does not exist" to `unavailable`; any other error propagates. It reads the `vtt` entry of `subtitles` / `automatic_captions` from the info dict and downloads its URL, waiting the random delay before each request (the page and each subtitle download).
 2026-10-16: `YT_DELAY_SECONDS` is `low-high` or a single number; `yt-dlp` is a runtime dependency of `node/`, imported lazily so tests inject a stub class.
+2026-10-16: Truncation and pages work on the paragraphs of the cleaned text; the `[…]` marker is a paragraph that counts for no word when filling a page, and a paragraph longer than `PAGE_WORDS` is cut into chunks that each become a page (the next paragraph starts a new page).
+2026-10-16: The command validates `MAX_WORDS` and `PAGE_WORDS` (integers of at least 1) and the fake extractor setup before running, and exits 2 on an invalid value like on a bad argument; any other extractor error propagates.
+2026-10-16: SponsorBlock is called only when a track was chosen; for the other statuses `fetch.transcript` has only `outcome`, `sponsor_ratio` (null) and `duration_ms`.
+2026-10-16: The command is the `yt-digest-node` console script (`yt_digest_node.cli:main`); the result is printed as one JSON line.
