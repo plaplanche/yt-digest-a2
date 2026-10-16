@@ -28,7 +28,7 @@ generate() {
       cd node
       uv run --quiet datamodel-codegen --input "$root/$schema" --input-file-type jsonschema \
         --output "$out/py/${name//-/_}.py" --output-model-type pydantic_v2.BaseModel \
-        --target-python-version 3.12 --use-specialized-enum --use-title-as-name \
+        --target-python-version 3.12 --use-title-as-name \
         --disable-timestamp --field-constraints --no-use-specialized-enum \
         --formatters ruff-check ruff-format >/dev/null
       # Enums are generated as enum.StrEnum.
