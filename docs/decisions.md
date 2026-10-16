@@ -25,3 +25,4 @@
 2026-10-16: The command validates `MAX_WORDS` and `PAGE_WORDS` (integers of at least 1) and the fake extractor setup before running, and exits 2 on an invalid value like on a bad argument; any other extractor error propagates.
 2026-10-16: SponsorBlock is called only when a track was chosen; for the other statuses `fetch.transcript` has only `outcome`, `sponsor_ratio` (null) and `duration_ms`.
 2026-10-16: The command is the `yt-digest-node` console script (`yt_digest_node.cli:main`); the result is printed as one JSON line.
+2026-10-16: An empty language list (`--langs` or `TRANSCRIPT_LANGS` with no language once split on commas and trimmed) is rejected like a bad argument, with exit code 2.
