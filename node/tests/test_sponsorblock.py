@@ -9,28 +9,43 @@ import pytest
 
 from yt_digest_node.sponsorblock import fetch_segments, sponsor_ratio
 
-_SEEN: list[str] = []
-_ANSWER: dict[str, Any] = {}
+
+class _Server(HTTPServer):
+    seen: list[str]
+    answer: dict[str, Any]
 
 
 class _Handler(BaseHTTPRequestHandler):
+    server: _Server
+
     def do_GET(self) -> None:
-        _SEEN.append(self.path)
-        self.send_response(_ANSWER["status"])
+        self.server.seen.append(self.path)
+        self.send_response(self.server.answer["status"])
         self.end_headers()
-        self.wfile.write(_ANSWER.get("body", b""))
+        self.wfile.write(self.server.answer.get("body", b""))
 
     def log_message(self, format: str, *args: Any) -> None:
         pass
 
 
+class _Fake(str):
+    """Base URL of a per-test server, with its recorded paths and canned answer."""
+
+    seen: list[str]
+    answer: dict[str, Any]
+
+
 @pytest.fixture
-def server() -> Iterator[str]:
-    _SEEN.clear()
-    httpd = HTTPServer(("127.0.0.1", 0), _Handler)
+def server() -> Iterator[_Fake]:
+    httpd = _Server(("127.0.0.1", 0), _Handler)
+    httpd.seen = []
+    httpd.answer = {}
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
-    yield f"http://127.0.0.1:{httpd.server_port}"
+    url = _Fake(f"http://127.0.0.1:{httpd.server_port}")
+    url.seen = httpd.seen
+    url.answer = httpd.answer
+    yield url
     httpd.shutdown()
     httpd.server_close()
 
@@ -43,18 +58,20 @@ def _log(capsys: pytest.CaptureFixture[str]) -> dict[str, Any]:
     return parsed
 
 
-def test_200_returns_segments(server: str, capsys: pytest.CaptureFixture[str]) -> None:
+def test_200_returns_segments(
+    server: _Fake, capsys: pytest.CaptureFixture[str]
+) -> None:
     body = [{"segment": [1, 2.5], "category": "sponsor"}, {"segment": [10, 12]}]
-    _ANSWER.update(status=200, body=json.dumps(body).encode())
+    server.answer.update(status=200, body=json.dumps(body).encode())
     result = fetch_segments("abc", server, "r1")
     assert result.state == "ok"
     assert result.segments == [(1.0, 2.5), (10.0, 12.0)]
-    assert "videoID=abc" in _SEEN[0]
+    assert "videoID=abc" in server.seen[0]
     assert (
         "categories=%5B%22sponsor%22%2C%22selfpromo%22%2C%22interaction%22%5D"
-        in _SEEN[0]
+        in server.seen[0]
     )
-    assert _SEEN[0].startswith("/api/skipSegments?")
+    assert server.seen[0].startswith("/api/skipSegments?")
     line = _log(capsys)
     assert line["attrs"]["status"] == 200
     assert line["attrs"]["segments"] == 2
@@ -63,8 +80,8 @@ def test_200_returns_segments(server: str, capsys: pytest.CaptureFixture[str]) -
     assert line["level"] == "info"
 
 
-def test_404_is_none(server: str, capsys: pytest.CaptureFixture[str]) -> None:
-    _ANSWER.update(status=404, body=b"Not Found")
+def test_404_is_none(server: _Fake, capsys: pytest.CaptureFixture[str]) -> None:
+    server.answer.update(status=404, body=b"Not Found")
     result = fetch_segments("abc", server)
     assert (result.state, result.segments) == ("none", [])
     line = _log(capsys)
@@ -72,8 +89,8 @@ def test_404_is_none(server: str, capsys: pytest.CaptureFixture[str]) -> None:
     assert line["attrs"]["segments"] == 0
 
 
-def test_500_is_error(server: str, capsys: pytest.CaptureFixture[str]) -> None:
-    _ANSWER.update(status=500, body=b"boom")
+def test_500_is_error(server: _Fake, capsys: pytest.CaptureFixture[str]) -> None:
+    server.answer.update(status=500, body=b"boom")
     result = fetch_segments("abc", server)
     assert (result.state, result.segments) == ("error", [])
     line = _log(capsys)
@@ -82,9 +99,9 @@ def test_500_is_error(server: str, capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_malformed_200_is_error(
-    server: str, capsys: pytest.CaptureFixture[str]
+    server: _Fake, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    _ANSWER.update(status=200, body=b"not json")
+    server.answer.update(status=200, body=b"not json")
     result = fetch_segments("abc", server)
     assert (result.state, result.segments) == ("error", [])
     assert _log(capsys)["attrs"]["segments"] == 0
