@@ -29,3 +29,9 @@
 2026-10-16: Timestamps in the node protocol schemas are checked with the same pattern as the `ts` of the log schema (ISO 8601 UTC, milliseconds, `Z`), not with a `format`.
 2026-10-16: `scripts/contracts.sh` resolves a `$ref` to another `*.schema.json` by replacing it, before generation, with the generated type of that schema (`tsType` for json2ts, `customTypePath` for datamodel-codegen) and importing it, so the type is never duplicated.
 2026-10-16: The Worker gains `ajv` (JSON Schema 2020-12) as a dev dependency so its tests validate instances against the real schemas.
+2026-10-16: The Worker's dev dependencies move from vitest 5 to vitest 4.1, the only major `@cloudflare/vitest-pool-workers` supports; `worker/` is installed with `--legacy-peer-deps` once to regenerate the lock file (npm's peer resolution crashes on it), and `npm ci` is unchanged.
+2026-10-16: Vitest has two projects, `node` (`tests/*.test.ts`, as before) and `worker` (`tests/worker/`, Miniflare's real D1 and R2 with `migrations/` applied by a setup file); `scripts/checks/test-worker.sh` runs them one after the other, `worker` first, because the contracts test's `npm ci` empties the `node_modules` the other project uses.
+2026-10-16: `wrangler.toml` uses the all-zero placeholder `database_id` (local D1 ignores it) and the `compatibility_date` `2026-08-22`, the newest the installed workerd binary supports.
+2026-10-16: Worker tests check the error body of `contracts/error.schema.json` by hand, since Ajv compiles with `new Function`, which workerd forbids.
+2026-10-16: Migration 0001 adds `CHECK` constraints for the enumerations of section 6.3, a unique index on `nodes.token_hash` and an index for the claim order of `jobs`.
+2026-10-16: A failed `/ops/*` authentication logs `auth.bearer.rejected` with `reason` `missing` (no bearer) or `unknown` (wrong bearer).
