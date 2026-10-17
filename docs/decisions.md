@@ -50,3 +50,9 @@
 2026-10-17: In `/node/result` the body is checked by hand against the schemas (a malformed `transcript` object is a 400), the R2 object is written with `onlyIf: etagDoesNotMatch "*"` before the lease is completed, and a lease revoked by `DELETE /ops/nodes/<id>` records no node event, the `node_events` kinds having none for it.
 2026-10-17: The `reason` of `job.validation_failed` and the message of the 422 are the same short fixed sentence naming the broken rule, never transcript text.
 2026-10-17: The word count of 8.4 skips the pages that are exactly `[…]` and splits the others on any whitespace run.
+2026-10-17: The daemon talks to the Worker with the standard library (`urllib`); every attempt of a retried call logs its own `worker.call`, and a heartbeat that is not due is skipped (it is checked before each claim, not during a job).
+2026-10-17: Requests are serialised with `exclude_unset`, so a nullable required field the daemon sets (`transcript`) is sent as `null` and the optional ones it leaves out are omitted.
+2026-10-17: In the loop a failed heartbeat or claim (other than 401) is not fatal: the daemon waits `POLL_SECONDS` and starts a new cycle; in `--once`, a result or release that fails (not 401) is dropped and the exit is still 0, since only a heartbeat or claim failure exits 1 there.
+2026-10-17: A bad `work` setting (a missing `WORKER_URL` or `NODE_TOKEN`, `CLAIM_BATCH` outside 1 to 10, a non-positive number) exits 2 with its reason on standard output, because standard error holds only JSON log lines; nothing is logged or sent.
+2026-10-17: SIGTERM and SIGINT are also honoured by `--once`: the job in progress is posted, the claimed jobs not started are released, and the exit is 0.
+2026-10-17: Every `/node/*` response is validated with its generated model (`NodeHeartbeatResponse`, `NodeClaimResponse`, `NodeJobAck`) inside `WorkerClient.call`; a response that does not validate is a `WorkerError` with status 0 and is not retried.
