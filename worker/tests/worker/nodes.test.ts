@@ -206,3 +206,43 @@ describe("POST /node/claim", () => {
     expect(got.every((n) => n <= 3)).toBe(true);
   });
 });
+
+describe("invites and users", () => {
+  const users = async (): Promise<{ user_sub: string; email: string; role: string }[]> =>
+    ((await (await call("/ops/users", {}, "ops-test")).json()) as { users: { user_sub: string; email: string; role: string }[] }).users;
+  it("stores an invite lowercased", async () => {
+    const res = await post("/ops/invites", { email: "Bob@Test" }, "ops-test");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ email: "bob@test", revoked: false });
+    const row = await env.DB.prepare("SELECT email, revoked FROM invites").first();
+    expect(row).toEqual({ email: "bob@test", revoked: 0 });
+  });
+  it("refuses a bad body with 400", async () => {
+    expect((await post("/ops/invites", { email: "nope" }, "ops-test")).status).toBe(400);
+    expect((await post("/ops/invites", {}, "ops-test")).status).toBe(400);
+  });
+  it("re-activates a revoked invite when inviting again", async () => {
+    await post("/ops/invites", { email: "bob@test" }, "ops-test");
+    const revoked = await post("/ops/invites/revoke", { email: "BOB@test" }, "ops-test");
+    expect(await revoked.json()).toEqual({ email: "bob@test", revoked: true });
+    expect((await env.DB.prepare("SELECT revoked FROM invites").first<{ revoked: number }>())?.revoked).toBe(1);
+    expect(await (await post("/ops/invites", { email: "bob@test" }, "ops-test")).json()).toEqual({ email: "bob@test", revoked: false });
+    expect((await env.DB.prepare("SELECT revoked FROM invites").first<{ revoked: number }>())?.revoked).toBe(0);
+  });
+  it("answers 404 not_found when revoking an unknown invite", async () => {
+    const res = await post("/ops/invites/revoke", { email: "ghost@test" }, "ops-test");
+    expect(res.status).toBe(404);
+    expect(((await res.json()) as { error: { code: string } }).error.code).toBe("not_found");
+  });
+  it("lists users sorted by e-mail and needs the operator bearer", async () => {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO users (user_sub, email, role, created_at) VALUES ('g-2', 'bob@test', 'member', 'x')"),
+      env.DB.prepare("INSERT INTO users (user_sub, email, role, created_at) VALUES ('g-1', 'alice@test', 'admin', 'x')"),
+    ]);
+    expect(await users()).toEqual([
+      { user_sub: "g-1", email: "alice@test", role: "admin" },
+      { user_sub: "g-2", email: "bob@test", role: "member" },
+    ]);
+    expect((await call("/ops/users")).status).toBe(401);
+  });
+});
