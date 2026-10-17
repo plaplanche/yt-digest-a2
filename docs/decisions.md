@@ -35,3 +35,7 @@
 2026-10-16: Worker tests check the error body of `contracts/error.schema.json` by hand, since Ajv compiles with `new Function`, which workerd forbids.
 2026-10-16: Migration 0001 adds `CHECK` constraints for the enumerations of section 6.3, a unique index on `nodes.token_hash` and an index for the claim order of `jobs`.
 2026-10-16: A failed `/ops/*` authentication logs `auth.bearer.rejected` with `reason` `missing` (no bearer) or `unknown` (wrong bearer).
+2026-10-16: `stack.sh` starts each process with `setsid` and records its pid, which is its process group id, in `.stack/pids/`; `down` sends TERM to the group, waits up to 5 s, then KILL.
+2026-10-16: `up` checks that a port is taken by trying a TCP connection to it, after stopping its own stack.
+2026-10-16: The Playwright projects are selected by file name: `*.api.spec.ts` for `api`, `*.browser.spec.ts` for `browser`; tests run in a single worker since they share one stack.
+2026-10-16: The e2e check copies `.stack/logs/` and `e2e/playwright-report/` to `ci-artifacts/` (git-ignored) when Playwright fails.
