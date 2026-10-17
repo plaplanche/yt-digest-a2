@@ -2,6 +2,7 @@ import type { NodeClaimResponse } from "./contracts/node-claim-response";
 import type { NodeHeartbeatResponse } from "./contracts/node-heartbeat-response";
 import type { Env } from "./env";
 import { errorResponse, json, notFound } from "./http";
+import { release, result, sweepExpired } from "./lease";
 import { log } from "./log";
 import { check, invalidRequest, isInt, isNumber, isString, isTimestampOrNull, readObject } from "./validate";
 
@@ -46,6 +47,7 @@ async function heartbeat(env: Env, node: NodeRow, body: Record<string, unknown>)
     ["version", "uptime_s", "jobs_in_progress"],
   );
   if (problem) return invalidRequest(problem);
+  await sweepExpired(env);
   await env.DB.prepare("UPDATE nodes SET last_heartbeat_at = ?1, version = ?2 WHERE node_id = ?3")
     .bind(new Date().toISOString(), body.version, node.node_id)
     .run();
@@ -64,6 +66,7 @@ type ClaimedRow = { video_id: string; lease_id: string; lease_expires_at: string
 async function claim(env: Env, node: NodeRow, body: Record<string, unknown>): Promise<Response> {
   const problem = check(body, { max_jobs: isInt(1, 10) }, []);
   if (problem) return invalidRequest(problem);
+  await sweepExpired(env);
   const maxJobs = (body.max_jobs as number | undefined) ?? DEFAULT_MAX_JOBS;
   const leaseSeconds = Number(env.LEASE_SECONDS) > 0 ? Number(env.LEASE_SECONDS) : DEFAULT_LEASE_SECONDS;
   const now = new Date();
@@ -102,7 +105,10 @@ async function claim(env: Env, node: NodeRow, body: Record<string, unknown>): Pr
 }
 
 export async function handleNode(request: Request, env: Env, path: string): Promise<Response> {
-  const handlers: Record<string, typeof heartbeat> = { "/node/heartbeat": heartbeat, "/node/claim": claim };
+  const handlers: Record<string, typeof heartbeat> = { "/node/heartbeat": heartbeat, "/node/claim": claim,
+    "/node/result": (e, n, b) => result(e, n.node_id, b),
+    "/node/release": (e, n, b) => release(e, n.node_id, b),
+  };
   const handler = handlers[path];
   if (!handler || request.method !== "POST") return notFound();
   const node = await authenticate(request, env);
