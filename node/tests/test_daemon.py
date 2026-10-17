@@ -229,6 +229,25 @@ def test_failed_heartbeat_exits_1(worker: FakeWorker, fixtures: Path) -> None:
     assert worker.paths() == ["/node/heartbeat"]
 
 
+def test_malformed_heartbeat_response_exits_1(
+    worker: FakeWorker, fixtures: Path
+) -> None:
+    worker.replies["/node/heartbeat"] = [(200, {"node_id": "n1"})]
+    process = _once(worker, fixtures)
+    assert process.returncode == 1
+    assert worker.paths() == ["/node/heartbeat"]
+
+
+def test_malformed_result_response_is_not_retried(
+    worker: FakeWorker, fixtures: Path
+) -> None:
+    worker.jobs = ["okvideo0001"]
+    worker.replies["/node/result"] = [(200, {"unexpected": True})]
+    process = _once(worker, fixtures)
+    assert process.returncode == 0
+    assert worker.paths().count("/node/result") == 1
+
+
 def test_unreachable_worker_exits_1(worker: FakeWorker, fixtures: Path) -> None:
     process = _start(worker, fixtures, "--once", WORKER_URL="http://127.0.0.1:9")
     _, err = process.communicate(timeout=60)

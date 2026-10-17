@@ -9,6 +9,8 @@ from importlib.metadata import version
 from yt_digest_node.contracts.node_claim_request import NodeClaimRequest
 from yt_digest_node.contracts.node_claim_response import Job, NodeClaimResponse
 from yt_digest_node.contracts.node_heartbeat_request import NodeHeartbeatRequest
+from yt_digest_node.contracts.node_heartbeat_response import NodeHeartbeatResponse
+from yt_digest_node.contracts.node_job_ack import NodeJobAck
 from yt_digest_node.contracts.node_release_request import NodeReleaseRequest
 from yt_digest_node.contracts.node_result_request import NodeResultRequest, Outcome
 from yt_digest_node.contracts.transcript_result import Status, TranscriptResult
@@ -85,13 +87,12 @@ class Daemon:
             uptime_s=int(now - self._started),
             jobs_in_progress=self._in_progress,
         )
-        self._client.call("heartbeat", body)
+        self._client.call("heartbeat", body, NodeHeartbeatResponse)
 
     def _claim_and_run(self) -> bool:
-        payload = self._client.call(
-            "claim", NodeClaimRequest(max_jobs=self._claim_batch)
-        )
-        jobs = NodeClaimResponse.model_validate_json(payload).jobs
+        jobs = self._client.call(
+            "claim", NodeClaimRequest(max_jobs=self._claim_batch), NodeClaimResponse
+        ).jobs
         for index, job in enumerate(jobs):
             if self._stop.is_set():
                 for rest in jobs[index:]:
@@ -125,7 +126,7 @@ class Daemon:
     ) -> None:
         """Send a result or a release with retries; a 4xx or a spent retry is dropped, a 401 is not."""
         try:
-            self._client.call(endpoint, body, retry=True)
+            self._client.call(endpoint, body, NodeJobAck, retry=True)
         except WorkerError as error:
             if error.status == 401:
                 raise

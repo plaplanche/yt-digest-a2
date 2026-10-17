@@ -1,16 +1,18 @@
 """HTTP client of the node protocol (spec lot 2 sections 8 and 9)."""
 
-import json
 import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable
+from typing import TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from yt_digest_node.log import emit
 
 RETRY_DELAYS = (1, 2, 4)
+
+Response = TypeVar("Response", bound=BaseModel)
 
 
 class WorkerError(Exception):
@@ -33,8 +35,25 @@ class WorkerClient:
         self._token = token
         self._sleep = sleep
 
-    def call(self, endpoint: str, body: BaseModel, retry: bool = False) -> bytes:
-        """POST `body` to `/node/<endpoint>`; with `retry`, retry network errors and 5xx."""
+    def call(
+        self,
+        endpoint: str,
+        body: BaseModel,
+        response_model: type[Response],
+        retry: bool = False,
+    ) -> Response:
+        """POST `body` to `/node/<endpoint>` and validate the response against `response_model`.
+
+        With `retry`, network errors and 5xx are retried. A response that does not
+        validate is a `WorkerError` with status 0 and is not retried.
+        """
+        payload = self._send_with_retries(endpoint, body, retry)
+        try:
+            return response_model.model_validate_json(payload)
+        except ValidationError:
+            raise WorkerError(endpoint, 0) from None
+
+    def _send_with_retries(self, endpoint: str, body: BaseModel, retry: bool) -> bytes:
         delays = RETRY_DELAYS if retry else ()
         for attempt in range(len(delays) + 1):
             try:
@@ -77,5 +96,4 @@ class WorkerClient:
                     "duration_ms": round((time.monotonic() - started) * 1000),
                 },
             )
-        json.loads(payload or b"null")
         return payload

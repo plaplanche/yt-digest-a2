@@ -55,3 +55,4 @@
 2026-10-17: In the loop a failed heartbeat or claim (other than 401) is not fatal: the daemon waits `POLL_SECONDS` and starts a new cycle; in `--once`, a result or release that fails (not 401) is dropped and the exit is still 0, since only a heartbeat or claim failure exits 1 there.
 2026-10-17: A bad `work` setting (a missing `WORKER_URL` or `NODE_TOKEN`, `CLAIM_BATCH` outside 1 to 10, a non-positive number) exits 2 with its reason on standard output, because standard error holds only JSON log lines; nothing is logged or sent.
 2026-10-17: SIGTERM and SIGINT are also honoured by `--once`: the job in progress is posted, the claimed jobs not started are released, and the exit is 0.
+2026-10-17: Every `/node/*` response is validated with its generated model (`NodeHeartbeatResponse`, `NodeClaimResponse`, `NodeJobAck`) inside `WorkerClient.call`; a response that does not validate is a `WorkerError` with status 0 and is not retried.
