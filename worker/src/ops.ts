@@ -2,6 +2,7 @@ import { log } from "./log";
 import { errorResponse, json, notFound } from "./http";
 import { revokeLeases, sweepExpired } from "./lease";
 import { sha256Hex } from "./node";
+import { base64url } from "./secrets";
 import { VIDEO_ID, check, invalidRequest, isInt, isString, readObject } from "./validate";
 import type { Env } from "./env";
 
@@ -74,10 +75,6 @@ async function enrollNode(request: Request, env: Env): Promise<Response> {
   if (inserted.meta.changes === 0) return errorResponse(409, "conflict", "Node already exists");
   log("node.enrolled", { attrs: { node_id: body.node_id } });
   return json({ node_id: body.node_id, owner_label: body.owner_label, token });
-}
-
-function base64url(bytes: Uint8Array): string {
-  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 async function enqueueJobs(request: Request, env: Env): Promise<Response> {
