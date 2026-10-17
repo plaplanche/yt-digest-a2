@@ -15,5 +15,11 @@ cd "$(dirname "$0")/../.."
   npx tsc --noEmit
   npx eslint .
 )
+(
+  cd e2e
+  npm ci
+  npx tsc --noEmit
+  npx eslint .
+)
 mapfile -d '' scripts < <(find scripts -name '*.sh' -print0)
 uvx --from shellcheck-py shellcheck "${scripts[@]}"
