@@ -152,6 +152,38 @@ async function getTranscript(env: Env, videoId: string): Promise<Response> {
   });
 }
 
+const isEmail = (v: unknown): boolean => typeof v === "string" && v.includes("@");
+
+async function invite(request: Request, env: Env): Promise<Response> {
+  const body = await readObject(request);
+  if (body instanceof Response) return body;
+  const problem = check(body, { email: isEmail }, ["email"]);
+  if (problem) return invalidRequest(problem);
+  const email = (body.email as string).toLowerCase();
+  await env.DB.prepare(
+    `INSERT INTO invites (email, invited_at) VALUES (?1, ?2) ON CONFLICT (email) DO UPDATE SET revoked = 0`,
+  )
+    .bind(email, new Date().toISOString())
+    .run();
+  return json({ email, revoked: false });
+}
+
+async function revokeInvite(request: Request, env: Env): Promise<Response> {
+  const body = await readObject(request);
+  if (body instanceof Response) return body;
+  const problem = check(body, { email: isEmail }, ["email"]);
+  if (problem) return invalidRequest(problem);
+  const email = (body.email as string).toLowerCase();
+  const update = await env.DB.prepare("UPDATE invites SET revoked = 1 WHERE email = ?1").bind(email).run();
+  if (update.meta.changes === 0) return notFound();
+  return json({ email, revoked: true });
+}
+
+async function listUsers(env: Env): Promise<Response> {
+  const { results } = await env.DB.prepare("SELECT user_sub, email, role FROM users ORDER BY email").all();
+  return json({ users: results });
+}
+
 export async function handleOps(request: Request, env: Env, path: string): Promise<Response> {
   const token = env.OPS_TOKEN;
   if (!token) return notFound();
@@ -159,6 +191,9 @@ export async function handleOps(request: Request, env: Env, path: string): Promi
   if (request.method === "POST" && path === "/ops/reset") return reset(env);
   if (request.method === "POST" && path === "/ops/nodes") return enrollNode(request, env);
   if (request.method === "POST" && path === "/ops/jobs") return enqueueJobs(request, env);
+  if (request.method === "POST" && path === "/ops/invites") return invite(request, env);
+  if (request.method === "POST" && path === "/ops/invites/revoke") return revokeInvite(request, env);
+  if (request.method === "GET" && path === "/ops/users") return listUsers(env);
   const job = /^\/ops\/jobs\/([^/]+)$/.exec(path);
   if (request.method === "GET" && job?.[1]) return getJob(env, job[1]);
   const transcript = /^\/ops\/transcripts\/([^/]+)$/.exec(path);
