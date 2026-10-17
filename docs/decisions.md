@@ -58,3 +58,10 @@
 2026-10-17: Every `/node/*` response is validated with its generated model (`NodeHeartbeatResponse`, `NodeClaimResponse`, `NodeJobAck`) inside `WorkerClient.call`; a response that does not validate is a `WorkerError` with status 0 and is not retried.
 2026-10-17: The mocks server derives its Google issuer from `MOCKS_PORT` (`http://127.0.0.1:$MOCKS_PORT/google`), takes the code's `redirect_uri` and an unparseable one as 400, and spends a code on any exchange attempt; a refresh grant answers a new ID token without `nonce`.
 2026-10-17: An invite or a revocation e-mail is lowercased but not trimmed; any string containing `@` is accepted.
+2026-10-17: `POST /register` ignores unknown fields; a body that is not a JSON object is a 400 `invalid_request` in the flat OAuth error form (`{"error", "error_description"}`), and `redirect_uris` is checked before the other fields.
+2026-10-17: `PUBLIC_URL` falls back to the origin of the request when it is absent, and `AUTH_CODE_TTL_SECONDS` and `AUTH_REQUEST_TTL_SECONDS` to 60 and 600 when absent or not positive.
+2026-10-17: A `scope` that is present but not exactly `digest` (an empty one included) is `invalid_scope`.
+2026-10-17: `POST /authorize/consent` with a `decision` other than `approve` or `deny`, or a missing field, is a 400 HTML that leaves the pending authorization usable; `approve` binds the Google `state` and `nonce` once, so a second `approve` is a 400.
+2026-10-17: The `reason` of `auth.oauth.denied` is `access_denied` for the consent `deny`, `google_error` for an `error` from Google or any failed code exchange or ID token check, and `not_invited` or `email_unverified` for the 403 page; `email_verified` is checked before the admin and invite rules, so it also refuses the admin.
+2026-10-17: A user who logs in again keeps the stored Google refresh token when Google sends no new one; the invite's `accepted_user_sub` is set whenever a non-revoked invite exists for the e-mail, admin or not.
+2026-10-17: If Google's discovery document cannot be fetched when the consent is approved, the answer is a 502 HTML page and the pending authorization stays usable.
