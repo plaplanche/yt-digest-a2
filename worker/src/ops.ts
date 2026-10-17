@@ -1,5 +1,6 @@
 import { log } from "./log";
 import { errorResponse, json, notFound } from "./http";
+import { revokeLeases, sweepExpired } from "./lease";
 import { sha256Hex } from "./node";
 import { VIDEO_ID, check, invalidRequest, isInt, isString, readObject } from "./validate";
 import type { Env } from "./env";
@@ -113,6 +114,7 @@ async function enqueueJobs(request: Request, env: Env): Promise<Response> {
 }
 
 async function getJob(env: Env, videoId: string): Promise<Response> {
+  await sweepExpired(env);
   const row = await env.DB.prepare(
     `SELECT video_id, kind, priority, status, leased_by, lease_expires_at, attempts, tried_nodes, last_outcome, created_at, done_at
      FROM jobs WHERE video_id = ?1 AND kind = 'primary'`,
@@ -121,6 +123,33 @@ async function getJob(env: Env, videoId: string): Promise<Response> {
     .first<{ tried_nodes: string }>();
   if (!row) return notFound();
   return json({ ...row, tried_nodes: JSON.parse(row.tried_nodes) });
+}
+
+async function revokeNode(env: Env, nodeId: string): Promise<Response> {
+  const node = await env.DB.prepare("SELECT revoked_at FROM nodes WHERE node_id = ?1").bind(nodeId).first();
+  if (!node) return notFound();
+  const now = new Date().toISOString();
+  // Only the request that sets revoked_at revokes the leases.
+  const update = await env.DB.prepare("UPDATE nodes SET state = 'disabled', state_since = ?1, revoked_at = ?1 WHERE node_id = ?2 AND revoked_at IS NULL")
+    .bind(now, nodeId)
+    .run();
+  if (update.meta.changes === 1) {
+    log("node.revoked", { attrs: { node_id: nodeId, leases_revoked: await revokeLeases(env, nodeId) } });
+  }
+  return json({ node_id: nodeId, state: "disabled" });
+}
+
+async function getTranscript(env: Env, videoId: string): Promise<Response> {
+  const object = await env.TRANSCRIPTS.get(`transcripts/${videoId}.json`);
+  if (!object) return notFound();
+  const meta = object.customMetadata ?? {};
+  return json({
+    video_id: videoId,
+    transcript: JSON.parse(await object.text()),
+    node_id: meta.node_id,
+    lease_id: meta.lease_id,
+    produced_at: meta.produced_at,
+  });
 }
 
 export async function handleOps(request: Request, env: Env, path: string): Promise<Response> {
@@ -132,5 +161,9 @@ export async function handleOps(request: Request, env: Env, path: string): Promi
   if (request.method === "POST" && path === "/ops/jobs") return enqueueJobs(request, env);
   const job = /^\/ops\/jobs\/([^/]+)$/.exec(path);
   if (request.method === "GET" && job?.[1]) return getJob(env, job[1]);
+  const transcript = /^\/ops\/transcripts\/([^/]+)$/.exec(path);
+  if (request.method === "GET" && transcript?.[1]) return getTranscript(env, transcript[1]);
+  const node = /^\/ops\/nodes\/([^/]+)$/.exec(path);
+  if (request.method === "DELETE" && node?.[1]) return revokeNode(env, node[1]);
   return notFound();
 }

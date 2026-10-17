@@ -44,4 +44,9 @@
 2026-10-17: `LEASE_SECONDS` falls back to 600 when it is absent or not a positive number.
 2026-10-17: `POST /ops/jobs` logs one `job.enqueued` per request (without `video_id`), with `count` the number of newly enqueued jobs, and logs nothing when all ids existed; ids repeated in a request count as existing after their first occurrence.
 2026-10-17: Jobs enqueued in one request share a `created_at`, so their claim order falls to `video_id`.
-2026-10-17: A node token is looked up by its hash; `auth.bearer.rejected` on `/node/*` has `reason` `missing`, `unknown` (also the operator token) or `revoked`; the expiry sweep, `/node/result` and `/node/release` are left to the next ticket, so those routes answer 404 for now.
+2026-10-17: A node token is looked up by its hash; `auth.bearer.rejected` on `/node/*` has `reason` `missing`, `unknown` (also the operator token) or `revoked`.
+2026-10-17: Every ending of a lease first moves the `leases` row out of `active` with a conditional UPDATE (the arbiter, so one request wins a race), then updates the job with a statement conditional on `lease_id` and `status = 'leased'`; a request that loses the arbiter re-reads the lease once, so a concurrent retry gets the stored response.
+2026-10-17: A job that becomes `done` keeps its `leased_by` and `lease_id` (the node that finished it) and only loses `lease_expires_at`.
+2026-10-17: In `/node/result` the body is checked by hand against the schemas (a malformed `transcript` object is a 400), the R2 object is written with `onlyIf: etagDoesNotMatch "*"` before the lease is completed, and a lease revoked by `DELETE /ops/nodes/<id>` records no node event, the `node_events` kinds having none for it.
+2026-10-17: The `reason` of `job.validation_failed` and the message of the 422 are the same short fixed sentence naming the broken rule, never transcript text.
+2026-10-17: The word count of 8.4 skips the pages that are exactly `[…]` and splits the others on any whitespace run.
