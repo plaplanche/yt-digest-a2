@@ -1,5 +1,7 @@
 import { log } from "./log";
 import { errorResponse, json, notFound } from "./http";
+import { sha256Hex } from "./node";
+import { VIDEO_ID, check, invalidRequest, isInt, isString, readObject } from "./validate";
 import type { Env } from "./env";
 
 // Every table of the D1 schema (migrations/0001_init.sql).
@@ -51,10 +53,84 @@ async function reset(env: Env): Promise<Response> {
   return json({ ok: true });
 }
 
+async function enrollNode(request: Request, env: Env): Promise<Response> {
+  const body = await readObject(request);
+  if (body instanceof Response) return body;
+  const problem = check(
+    body,
+    { node_id: (v) => typeof v === "string" && /^[a-z0-9][a-z0-9-]{0,62}$/.test(v), owner_label: isString(1, 100) },
+    ["node_id", "owner_label"],
+  );
+  if (problem) return invalidRequest(problem);
+  const token = `ytd_node_${base64url(crypto.getRandomValues(new Uint8Array(32)))}`;
+  const now = new Date().toISOString();
+  const inserted = await env.DB.prepare(
+    `INSERT INTO nodes (node_id, owner_label, token_hash, state, state_since, created_at) VALUES (?1, ?2, ?3, 'healthy', ?4, ?4)
+     ON CONFLICT (node_id) DO NOTHING`,
+  )
+    .bind(body.node_id, body.owner_label, await sha256Hex(token), now)
+    .run();
+  if (inserted.meta.changes === 0) return errorResponse(409, "conflict", "Node already exists");
+  log("node.enrolled", { attrs: { node_id: body.node_id } });
+  return json({ node_id: body.node_id, owner_label: body.owner_label, token });
+}
+
+function base64url(bytes: Uint8Array): string {
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+async function enqueueJobs(request: Request, env: Env): Promise<Response> {
+  const body = await readObject(request);
+  if (body instanceof Response) return body;
+  const problem = check(
+    body,
+    {
+      video_ids: (v) => Array.isArray(v) && v.length >= 1 && v.length <= 100 && v.every((id) => typeof id === "string" && VIDEO_ID.test(id)),
+      priority: isInt(0),
+    },
+    ["video_ids"],
+  );
+  if (problem) return invalidRequest(problem);
+  const ids = body.video_ids as string[];
+  const priority = (body.priority as number | undefined) ?? 0;
+  const now = new Date().toISOString();
+  const results = await env.DB.batch([
+    ...ids.map((id) =>
+      env.DB.prepare(
+        `INSERT INTO jobs (video_id, kind, priority, status, created_at) VALUES (?1, 'primary', ?2, 'queued', ?3)
+         ON CONFLICT (video_id, kind) DO NOTHING`,
+      ).bind(id, priority, now),
+    ),
+    // Raises the priority of the jobs that already existed; never lowers it.
+    env.DB.prepare(
+      `UPDATE jobs SET priority = ?1 WHERE priority < ?1 AND kind = 'primary' AND video_id IN (SELECT value FROM json_each(?2))`,
+    ).bind(priority, JSON.stringify(ids)),
+  ]);
+  const enqueued = ids.filter((_, i) => results[i]?.meta.changes === 1);
+  const existing = ids.filter((_, i) => results[i]?.meta.changes !== 1);
+  if (enqueued.length > 0) log("job.enqueued", { attrs: { count: enqueued.length, priority } });
+  return json({ enqueued, existing });
+}
+
+async function getJob(env: Env, videoId: string): Promise<Response> {
+  const row = await env.DB.prepare(
+    `SELECT video_id, kind, priority, status, leased_by, lease_expires_at, attempts, tried_nodes, last_outcome, created_at, done_at
+     FROM jobs WHERE video_id = ?1 AND kind = 'primary'`,
+  )
+    .bind(videoId)
+    .first<{ tried_nodes: string }>();
+  if (!row) return notFound();
+  return json({ ...row, tried_nodes: JSON.parse(row.tried_nodes) });
+}
+
 export async function handleOps(request: Request, env: Env, path: string): Promise<Response> {
   const token = env.OPS_TOKEN;
   if (!token) return notFound();
   if (!(await authenticated(request, token))) return errorResponse(401, "unauthorized", "Missing or wrong operator bearer");
   if (request.method === "POST" && path === "/ops/reset") return reset(env);
+  if (request.method === "POST" && path === "/ops/nodes") return enrollNode(request, env);
+  if (request.method === "POST" && path === "/ops/jobs") return enqueueJobs(request, env);
+  const job = /^\/ops\/jobs\/([^/]+)$/.exec(path);
+  if (request.method === "GET" && job?.[1]) return getJob(env, job[1]);
   return notFound();
 }

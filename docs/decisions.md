@@ -39,3 +39,9 @@
 2026-10-16: `up` checks that a port is taken by trying a TCP connection to it, after stopping its own stack.
 2026-10-16: The Playwright projects are selected by file name: `*.api.spec.ts` for `api`, `*.browser.spec.ts` for `browser`; tests run in a single worker since they share one stack.
 2026-10-16: The e2e check copies `.stack/logs/` and `e2e/playwright-report/` to `ci-artifacts/` (git-ignored) when Playwright fails.
+2026-10-17: The Worker validates `/node/*` and `/ops/*` bodies with small hand-written checks (`src/validate.ts`) that mirror the schemas, since Ajv cannot run in workerd; a node request body must be a JSON object, so an empty body on `/node/claim` is a 400 (nodes send `{}`).
+2026-10-17: `/node/claim` is one D1 batch: a conditional `UPDATE jobs … WHERE status = 'queued' AND video_id IN (SELECT … ORDER BY … LIMIT max_jobs) RETURNING`, whose lease ids share a random 16-hex prefix per claim, then an `INSERT INTO leases … SELECT` that finds the new leases by this prefix; the answer is sorted in the Worker by priority, creation time and video id.
+2026-10-17: `LEASE_SECONDS` falls back to 600 when it is absent or not a positive number.
+2026-10-17: `POST /ops/jobs` logs one `job.enqueued` per request (without `video_id`), with `count` the number of newly enqueued jobs, and logs nothing when all ids existed; ids repeated in a request count as existing after their first occurrence.
+2026-10-17: Jobs enqueued in one request share a `created_at`, so their claim order falls to `video_id`.
+2026-10-17: A node token is looked up by its hash; `auth.bearer.rejected` on `/node/*` has `reason` `missing`, `unknown` (also the operator token) or `revoked`; the expiry sweep, `/node/result` and `/node/release` are left to the next ticket, so those routes answer 404 for now.
